@@ -6,7 +6,7 @@
 panfam_setup(work_dir = getwd(), output_dir = "PanFamR_results",
   genes = NULL, family_name = "CustomFamily", gene_sets = NULL,
   cancers = NULL, min_size = 1L,
-  correlation_method = c("spearman", "pearson"), expression = NULL)
+  correlation_method = c("pearson", "spearman"), expression = NULL)
 }
 \arguments{
 \item{work_dir}{Working directory used to resolve a relative output directory. Created if necessary. Does not change the R working directory.}
@@ -16,7 +16,7 @@ panfam_setup(work_dir = getwd(), output_dir = "PanFamR_results",
 \item{gene_sets}{Alternative named list of gene vectors for multiple user-defined families.}
 \item{cancers}{Optional cancer labels to select, such as BRCA or LUAD. NULL uses all cancer types.}
 \item{min_size}{Minimum matched gene count for ssGSEA; a positive integer, default one.}
-\item{correlation_method}{Spearman (default) or Pearson correlation.}
+\item{correlation_method}{Pearson (source-script default) or Spearman correlation.}
 \item{expression}{Optional sample-by-gene data frame with Cancer and Group columns; Group must be Tumor or Normal. NULL uses bundled expression.}
 }
 \value{A panfam_project with fixed configuration and an internal cache. Pass this object to each analysis function. The absolute result directory is project$output_dir.}

@@ -29,6 +29,7 @@
 
 .panfam_fdr <- function(x) {
   if (nrow(x) && "p_value" %in% names(x)) x$fdr <- stats::p.adjust(x$p_value, method = "BH")
+  if (nrow(x) && "group_p_value" %in% names(x)) x$group_fdr <- stats::p.adjust(x$group_p_value, method = "BH")
   x
 }
 
@@ -58,15 +59,15 @@
 .panfam_save_plot <- function(plot, directory, name, width = 11, height = 5) {
   dir.create(directory, recursive = TRUE, showWarnings = FALSE)
   pdf_device <- if (capabilities("cairo")) grDevices::cairo_pdf else grDevices::pdf
-  ggplot2::ggsave(file.path(directory, paste0(name, ".pdf")), plot, width = width, height = height, device = pdf_device)
-  ggplot2::ggsave(file.path(directory, paste0(name, ".png")), plot, width = width, height = height, dpi = 120)
+  ggplot2::ggsave(file.path(directory, paste0(name, ".pdf")), plot, width = width, height = height, device = pdf_device, bg = "white")
+  ggplot2::ggsave(file.path(directory, paste0(name, ".png")), plot, width = width, height = height, dpi = 300, bg = "white")
 }
 
 .panfam_difference <- function(tumor, normal) {
   tumor <- tumor[is.finite(tumor)]
   normal <- normal[is.finite(normal)]
   valid <- length(tumor) >= 3L && length(normal) >= 3L
-  fit <- if (valid) tryCatch(stats::wilcox.test(tumor, normal, exact = FALSE), error = function(e) NULL) else NULL
+  fit <- if (valid) suppressWarnings(tryCatch(stats::wilcox.test(tumor, normal), error = function(e) NULL)) else NULL
   data.frame(n_tumor = length(tumor), n_normal = length(normal),
              mean_difference = if (length(tumor) && length(normal)) mean(tumor) - mean(normal) else NA_real_,
              median_difference = if (length(tumor) && length(normal)) stats::median(tumor) - stats::median(normal) else NA_real_,
@@ -90,18 +91,9 @@
       cbind(Gene = gene, Cancer = cancer, .panfam_difference(values[groups == "Tumor"], values[groups == "Normal"]))
     }))
   })))
-  plot <- ggplot2::ggplot(scores, ggplot2::aes(x = Cancer, y = Score, fill = Group)) +
-    ggplot2::geom_boxplot(outlier.size = 0.3) + ggplot2::theme_bw() +
-    ggplot2::scale_fill_manual(values = c(Normal = "#397FB6", Tumor = "#D65A45")) +
-    ggplot2::labs(title = paste(label, "ssGSEA scores"), x = NULL, y = "ssGSEA score") +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
-  .panfam_save_plot(plot, directory, "score_distribution")
+  .panfam_original_score_plot(scores, score_table, directory, label)
   if (nrow(gene_table)) {
-    plot <- ggplot2::ggplot(gene_table, ggplot2::aes(x = Cancer, y = Gene, fill = rank_biserial)) +
-      ggplot2::geom_tile() + ggplot2::scale_fill_gradient2(low = "#397FB6", mid = "white", high = "#D65A45", limits = c(-1, 1), na.value = "grey90") +
-      ggplot2::theme_minimal() + ggplot2::labs(title = paste(label, "tumor versus normal"), fill = "Rank effect", x = NULL, y = NULL) +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
-    .panfam_save_plot(plot, directory, "gene_expression_differences", height = max(4, min(14, length(genes) * 0.22 + 2)))
+    .panfam_original_expression_heatmap(gene_table, directory, "gene_expression_differences", label)
   }
   list(score_differences = score_table, gene_differences = gene_table)
 }
@@ -121,33 +113,23 @@
                  by = c("Patient", "Cancer"), suffixes = c("_tumor", "_normal"))
   summary <- .panfam_fdr(.panfam_bind(lapply(sort(unique(scores$Cancer)), function(cancer) {
     x <- pairs[pairs$Cancer == cancer, , drop = FALSE]
-    p <- if (nrow(x) >= 3) suppressWarnings(tryCatch(stats::wilcox.test(x$Score_tumor, x$Score_normal, paired = TRUE, exact = FALSE)$p.value,
+    p <- if (nrow(x) >= 3) suppressWarnings(tryCatch(stats::wilcox.test(x$Score_tumor, x$Score_normal, paired = TRUE)$p.value,
                                                      error = function(e) NA_real_)) else NA_real_
     data.frame(Cancer = cancer, n_pairs = nrow(x),
                median_difference = if (nrow(x)) stats::median(x$Score_tumor - x$Score_normal) else NA_real_, p_value = p,
                reason = if (nrow(x) < 3) "Fewer than three matched pairs" else if (!is.finite(p)) "Paired test could not be estimated" else "")
   })))
   if (!is.null(directory) && nrow(pairs)) {
-    normal_plot <- data.frame(Patient = pairs$Patient, Cancer = pairs$Cancer, Group = "Normal", Score = pairs$Score_normal)
-    tumor_plot <- data.frame(Patient = pairs$Patient, Cancer = pairs$Cancer, Group = "Tumor", Score = pairs$Score_tumor)
-    values <- rbind(normal_plot, tumor_plot)
-    values$Group <- factor(values$Group, levels = c("Normal", "Tumor"))
-    plot <- ggplot2::ggplot(values, ggplot2::aes(x = Group, y = Score, group = Patient)) +
-      ggplot2::geom_line(colour = "grey75", alpha = 0.45) +
-      ggplot2::geom_point(ggplot2::aes(colour = Group), size = 0.6, alpha = 0.7) +
-      ggplot2::facet_wrap(~Cancer, scales = "free_y", ncol = 6) +
-      ggplot2::scale_colour_manual(values = c(Normal = "#397FB6", Tumor = "#D65A45")) +
-      ggplot2::theme_bw() + ggplot2::labs(title = paste(label, "matched tumor-normal scores"), x = NULL, y = "ssGSEA score")
-    .panfam_save_plot(plot, directory, "paired_scores", height = max(4, ceiling(length(unique(pairs$Cancer)) / 6) * 2))
+    .panfam_original_paired_plot(pairs, directory, label, summary)
   }
   list(paired_samples = pairs, paired_score_differences = summary)
 }
 
-.panfam_correlation <- function(x, y, method = "spearman") {
+.panfam_correlation <- function(x, y, method = "pearson") {
   valid <- is.finite(x) & is.finite(y)
   x <- x[valid]
   y <- y[valid]
-  enough <- length(x) >= 5L && stats::sd(x) > 0 && stats::sd(y) > 0
+  enough <- length(x) >= 3L && stats::sd(x) > 0 && stats::sd(y) > 0
   fit <- if (enough) suppressWarnings(tryCatch(stats::cor.test(x, y, method = method, exact = FALSE), error = function(e) NULL)) else NULL
   data.frame(n = length(x), correlation = if (!is.null(fit)) unname(fit$estimate) else NA_real_,
              p_value = if (!is.null(fit)) fit$p.value else NA_real_,
@@ -169,14 +151,7 @@
 }
 
 .panfam_correlation_plot <- function(table, directory, name, title) {
-  if (!nrow(table) || !any(is.finite(table$correlation))) return(invisible(NULL))
-  table$mark <- ifelse(!is.na(table$fdr) & table$fdr < 0.05, "*", "")
-  plot <- ggplot2::ggplot(table, ggplot2::aes(x = Cancer, y = Feature, fill = correlation)) +
-    ggplot2::geom_tile() + ggplot2::geom_text(ggplot2::aes(label = mark), size = 3) +
-    ggplot2::scale_fill_gradient2(low = "#397FB6", mid = "white", high = "#D65A45", limits = c(-1, 1), na.value = "grey90") +
-    ggplot2::theme_minimal() + ggplot2::labs(title = title, subtitle = "* BH-adjusted P < 0.05", fill = "Correlation", x = NULL, y = NULL) +
-    ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
-  .panfam_save_plot(plot, directory, name, height = max(3, min(16, length(unique(table$Feature)) * 0.22 + 2)))
+  .panfam_original_correlation_plot(table, directory, name, title)
 }
 
 .panfam_aux_object <- function(name) {
@@ -187,6 +162,7 @@
 
 .panfam_biomarker_analysis <- function(scores, dataset, panel, directory, method) {
   table <- .panfam_correlations(scores, .panfam_aux_object(dataset), panel, method)
+  attr(table, "correlation_method") <- method
   .panfam_correlation_plot(table, directory, paste0(tolower(panel), "_correlations"), paste(panel, "association"))
   stats::setNames(list(table), paste0(tolower(panel), "_correlations"))
 }
@@ -195,7 +171,10 @@
   data <- data[is.finite(data$Time) & data$Time > 0 & data$Event %in% c(0, 1) & is.finite(data$Score), , drop = FALSE]
   events <- sum(data$Event)
   row <- data.frame(n = nrow(data), events = events, hr_per_sd = NA_real_, ci_lower = NA_real_, ci_upper = NA_real_,
-                    p_value = NA_real_, ph_p_value = NA_real_, reason = "", stringsAsFactors = FALSE)
+                    p_value = NA_real_, ph_p_value = NA_real_,
+                    hr_per_unit = NA_real_, unit_ci_lower = NA_real_, unit_ci_upper = NA_real_, unit_p_value = NA_real_,
+                    hr_high_vs_low = NA_real_, group_ci_lower = NA_real_, group_ci_upper = NA_real_,
+                    group_p_value = NA_real_, group_reason = "", reason = "", stringsAsFactors = FALSE)
   km <- data.frame(n = nrow(data), events = events, n_low = 0L, n_high = 0L, cutoff = NA_real_, p_value = NA_real_, reason = "")
   if (nrow(data) < 10L || events < 5L || !is.finite(stats::sd(data$Score)) || stats::sd(data$Score) <= 0) {
     row$reason <- km$reason <- "Fewer than 10 complete samples, fewer than 5 events, or constant score"
@@ -214,6 +193,11 @@
       row$ci_upper <- ci["upper .95"]
       row$p_value <- sm$coefficients[1, "Pr(>|z|)"]
       row$ph_p_value <- tryCatch(survival::cox.zph(fit)$table[1, "p"], error = function(e) NA_real_)
+      score_sd <- stats::sd(data$Score)
+      row$hr_per_unit <- exp(log(row$hr_per_sd) / score_sd)
+      row$unit_ci_lower <- exp(log(row$ci_lower) / score_sd)
+      row$unit_ci_upper <- exp(log(row$ci_upper) / score_sd)
+      row$unit_p_value <- row$p_value
     }
   } else row$reason <- if (length(problems)) paste(problems, collapse = "; ") else "Cox model could not be fitted"
   km$cutoff <- stats::median(data$Score)
@@ -225,20 +209,27 @@
     diff <- survival::survdiff(survival::Surv(Time, Event) ~ ScoreGroup, data = data)
     km$p_value <- stats::pchisq(diff$chisq, df = 1, lower.tail = FALSE)
     kmfit <- survival::survfit(survival::Surv(Time, Event) ~ ScoreGroup, data = data)
+    group_problems <- character()
+    group_fit <- tryCatch(withCallingHandlers(
+      survival::coxph(survival::Surv(Time, Event) ~ ScoreGroup, data = data, ties = "efron"),
+      warning = function(w) { group_problems <<- c(group_problems, conditionMessage(w)); invokeRestart("muffleWarning") }),
+      error = function(e) { group_problems <<- c(group_problems, conditionMessage(e)); NULL })
+    if (!is.null(group_fit) && !length(group_problems)) {
+      group_summary <- summary(group_fit)
+      group_ci <- group_summary$conf.int[1, ]
+      if (all(is.finite(group_ci))) {
+        row$hr_high_vs_low <- group_ci["exp(coef)"]
+        row$group_ci_lower <- group_ci["lower .95"]
+        row$group_ci_upper <- group_ci["upper .95"]
+        row$group_p_value <- group_summary$coefficients[1, "Pr(>|z|)"]
+      }
+    } else row$group_reason <- if (length(group_problems)) paste(group_problems, collapse = "; ") else "Grouped Cox model could not be fitted"
   } else km$reason <- "Fewer than three samples in a median-split group"
   list(cox = row, km = km, data = data, fit = kmfit)
 }
 
 .panfam_km_plot <- function(result, path, title, time_label = "Time (days)") {
-  if (is.null(result$fit)) return(invisible(NULL))
-  dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
-  if (capabilities("cairo")) grDevices::cairo_pdf(path, width = 7, height = 6) else grDevices::pdf(path, width = 7, height = 6)
-  on.exit(grDevices::dev.off(), add = TRUE)
-  graphics::plot(result$fit, col = c("#397FB6", "#D65A45"), lwd = 2, xlab = time_label,
-                 ylab = "Survival probability", main = title, conf.int = FALSE, mark.time = TRUE)
-  graphics::legend("bottomleft", legend = paste0(c("Low", "High"), " (n=", c(result$km$n_low, result$km$n_high), ")"),
-                   col = c("#397FB6", "#D65A45"), lty = 1, lwd = 2, bty = "n")
-  graphics::mtext(paste0("Median split; log-rank P = ", format.pval(result$km$p_value, digits = 3)), side = 3, line = 0.2, cex = 0.8)
+  .panfam_original_km_plot(result, path, title, time_label)
 }
 
 .panfam_survival_analysis <- function(scores, directory, label, endpoints = c("OS", "DSS", "PFI", "DFI")) {
@@ -265,16 +256,7 @@
   }
   cox <- .panfam_fdr(.panfam_bind(rows))
   km <- .panfam_fdr(.panfam_bind(kms))
-  valid <- cox[is.finite(cox$hr_per_sd) & is.finite(cox$ci_lower) & is.finite(cox$ci_upper), , drop = FALSE]
-  if (nrow(valid)) {
-    plot <- ggplot2::ggplot(valid, ggplot2::aes(x = hr_per_sd, y = Cancer)) +
-      ggplot2::geom_vline(xintercept = 1, linetype = 2, colour = "grey60") +
-      ggplot2::geom_errorbarh(ggplot2::aes(xmin = ci_lower, xmax = ci_upper), height = 0.2) +
-      ggplot2::geom_point(ggplot2::aes(colour = fdr < 0.05)) + ggplot2::scale_x_log10() +
-      ggplot2::facet_wrap(~Endpoint, nrow = 1) + ggplot2::theme_bw() +
-      ggplot2::labs(title = paste(label, "univariate survival association"), x = "Hazard ratio per score SD (95% CI)", y = NULL, colour = "FDR < 0.05")
-    .panfam_save_plot(plot, directory, "survival_forest", width = 13, height = 11)
-  }
+  .panfam_original_survival_forest(cox, directory, label)
   # Some small cancers may lack a valid score group; keep a uniform schema.
   samples <- lapply(samples, function(x) { if (!"ScoreGroup" %in% names(x)) x$ScoreGroup <- NA_character_; x })
   list(survival_cox = cox, survival_km = km, survival_samples = .panfam_bind(samples))

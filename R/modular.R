@@ -63,14 +63,14 @@
 #' @param gene_sets Alternative named list of custom gene vectors.
 #' @param cancers Optional vector of TCGA cancer labels; NULL selects all.
 #' @param min_size Positive minimum matched gene count for ssGSEA.
-#' @param correlation_method Spearman (default) or Pearson correlation.
+#' @param correlation_method Pearson (source-script default) or Spearman correlation.
 #' @param expression Optional custom sample-by-gene data frame.
 #' @return A panfam_project passed to the individual analysis functions.
 #' @export
 panfam_setup <- function(work_dir = getwd(), output_dir = "PanFamR_results",
                           genes = NULL, family_name = "CustomFamily", gene_sets = NULL,
                           cancers = NULL, min_size = 1L,
-                          correlation_method = c("spearman", "pearson"), expression = NULL) {
+                          correlation_method = c("pearson", "spearman"), expression = NULL) {
   sets <- .panfam_gene_sets(gene_sets, genes, family_name)
   method <- match.arg(correlation_method)
   if (!is.numeric(min_size) || length(min_size) != 1L || !is.finite(min_size) ||
@@ -354,7 +354,7 @@ panfam_immunotherapy <- function(project) {
 #' @export
 panfam_alterations <- function(project) {
   .panfam_run_step(project, "alterations", function(name, directory) {
-    .panfam_alterations_analysis(project$gene_sets[[name]], .panfam_project_cancers(project))
+    .panfam_alterations_analysis(project$gene_sets[[name]], .panfam_project_cancers(project), directory, name)
   }, needs_scores = FALSE)
 }
 

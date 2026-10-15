@@ -25,7 +25,7 @@
              '<h2>\u8fd0\u884c\u72b6\u6001 / Run status</h2>', .panfam_html_table(result$run_log),
              '<h2>\u5206\u6790\u89c4\u5219 / Methods</h2>',
              '<p>ssGSEA uses alpha=0.25, with each family normalized by its own score range. Tumor-versus-normal tests use two-sided Wilcoxon rank-sum tests; paired tests use matched TCGA patient IDs. Effects are mean/median differences and rank-biserial effects, without assuming the input expression scale is logarithmic.</p>',
-             paste0('<p>Associations use ', .panfam_html(result$settings$correlation_method), ' correlation. Survival uses a univariate Cox model per one score standard deviation and a fixed median split for log-rank/KM analysis. Low: score \u2264 median; high: score &gt; median. No samples are manually reassigned. Models require at least 10 complete samples and 5 events; groups require at least 3 samples. Each newly computed result table uses Benjamini-Hochberg adjustment across its valid tests. Source CNV/methylation FDR values are retained.</p>'),
+             paste0('<p>Associations use ', .panfam_html(result$settings$correlation_method), ' correlation (Pearson is the source-script default). Family survival figures display High versus Low median-group Cox estimates; continuous per-SD estimates remain in separate table columns. Low: score \u2264 median; high: score &gt; median. No samples are manually reassigned. Models require at least 10 complete samples and 5 events; groups require at least 3 samples. Source-style significance marks use raw P values, as described in figure captions and module documentation. Each newly computed result table also retains Benjamini-Hochberg adjustment. Source CNV/methylation FDR values are retained.</p>'),
              '<p>TCGA survival and correlation analyses retain one tumor sample per patient, with exact ID matches preferred and unambiguous TCGA prefixes used where necessary. Immunotherapy analyses use baseline samples and exclude known non-immunotherapy controls; unannotated treatment stages and unavailable OS data are recorded. Duplicate gene-symbol rows are averaged, and genes with non-finite expression in selected cohort samples are excluded with counts and family coverage recorded. Expression values are not imputed. Unknown response/event labels remain missing. Scores are interpreted within each cohort. TCGA/GTEx tumor-normal comparisons pool source-labelled normal samples and do not correct study/batch differences.</p>')
   for (name in names(result$scores)) {
     safe <- .panfam_safe_names(names(result$scores))[[name]]
@@ -74,13 +74,13 @@
 #' @param analyses Modules to run. Defaults to all supported modules; character(0) runs scoring only.
 #' @param cancers Optional cancer labels to analyze.
 #' @param min_size Minimum number of matched genes for ssGSEA.
-#' @param correlation_method Correlation method, either spearman or pearson.
+#' @param correlation_method Pearson (source-script default) or Spearman correlation.
 #' @return A panfam_result containing scores, result tables, gene coverage, run status, and output paths.
 #' @export
 panfam_analyze <- function(gene_sets = NULL, expression = NULL, output_dir = "PanFamR_results",
                            genes = NULL, family_name = "CustomFamily",
                            analyses = c("expression", "tcga_gtex", "paired", "survival", "tmb", "msi", "immune", "immunotherapy", "alterations", "cnv_methylation"),
-                           cancers = NULL, min_size = 1L, correlation_method = c("spearman", "pearson")) {
+                           cancers = NULL, min_size = 1L, correlation_method = c("pearson", "spearman")) {
   sets <- .panfam_gene_sets(gene_sets, genes, family_name)
   correlation_method <- match.arg(correlation_method)
   supported <- c("expression", "tcga_gtex", "paired", "survival", "tmb", "msi", "immune", "immunotherapy", "alterations", "cnv_methylation")
@@ -141,7 +141,7 @@ panfam_analyze <- function(gene_sets = NULL, expression = NULL, output_dir = "Pa
         msi = .panfam_biomarker_analysis(df, "All_MSI", "MSI", plot_dir, correlation_method),
         immune = .panfam_immune_analysis(df, expression, plot_dir, correlation_method),
         immunotherapy = .panfam_immunotherapy_analysis(sets[[name]], min_size, plot_dir, name),
-        alterations = .panfam_alterations_analysis(sets[[name]], sort(unique(df$Cancer))),
+        alterations = .panfam_alterations_analysis(sets[[name]], sort(unique(df$Cancer)), plot_dir, name),
         cnv_methylation = .panfam_cnv_methylation_analysis(sets[[name]], sort(unique(df$Cancer)), plot_dir)),
         error = function(e) e)
       key <- paste(name, module)

@@ -8,7 +8,7 @@ panfam_analyze(gene_sets = NULL, expression = NULL,
   analyses = c("expression", "tcga_gtex", "paired", "survival", "tmb",
     "msi", "immune", "immunotherapy", "alterations", "cnv_methylation"),
   cancers = NULL, min_size = 1L,
-  correlation_method = c("spearman", "pearson"))
+  correlation_method = c("pearson", "spearman"))
 }
 \arguments{
 \item{gene_sets}{A named list of gene vectors, or a single gene vector.}
@@ -19,11 +19,11 @@ panfam_analyze(gene_sets = NULL, expression = NULL,
 \item{analyses}{Modules to run. Defaults to all listed modules; character(0) runs scoring only.}
 \item{cancers}{Optional cancer labels to select.}
 \item{min_size}{Minimum matched genes for ssGSEA; positive integer, default one.}
-\item{correlation_method}{Either spearman or pearson.}
+\item{correlation_method}{Pearson by default, matching the source script; Spearman is also available.}
 }
 \value{A panfam_result containing scores, tables, gene coverage, run status, settings, and output directory. When output_dir is NULL, returns a named list of score data frames.}
 \description{Scores arbitrary gene families with the bundled data and automatically writes analysis tables, plots, and an HTML report.}
-\details{Survival uses fixed median groups and univariate Cox models. Newly computed test tables use Benjamini-Hochberg adjustment. Modules with insufficient data are recorded in the run log. Source mutation and CNV/methylation inputs cover only the genes present in the original project.}
+\details{Family survival figures use fixed median-group High versus Low Cox estimates. Continuous per-standard-deviation estimates and their P values remain in separate columns; gene-level tables also contain per-expression-unit estimates. Source-style figure marks use raw P values as labelled, while newly computed result tables retain Benjamini-Hochberg adjustment. Pearson correlation is the source-script default. Modules with insufficient data are recorded in the run log. Source mutation and CNV/methylation inputs cover only the genes present in the original project.}
 \examples{
 \dontrun{
 result <- panfam_analyze(genes = c("COX4I1", "COX5A", "COX5B", "COX6A1", "COX6B1"),

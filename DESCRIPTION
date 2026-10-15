@@ -1,6 +1,6 @@
 Package: PanFamR
 Title: Pan-Cancer ssGSEA Analysis and Visualization
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: person("Serena", email = "g512827252@outlook.com", role = c("aut", "cre"))
 Description: Calculates single-sample gene set enrichment scores and provides
     functions for pan-cancer expression, survival, mutation, and immune

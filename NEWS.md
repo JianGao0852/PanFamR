@@ -1,3 +1,16 @@
+# PanFamR 0.3.1
+
+* Restored the original plotting styles throughout the modular workflow: six-bin expression heatmaps with numeric labels, red/cyan TMB/MSI radar plots, blue/white/red ComplexHeatmap immune panels, alteration-count heatmaps with stacked type annotations, source CNV/methylation bubble plots, and immunotherapy response-composition bars with KM curves.
+* Retained alteration frequency and coverage tables. Alteration heatmap cells count gene/cancer events, allowing multiple alteration types per sample; the Total row counts unique samples with at least one alteration in the user-defined input family.
+* Restored Pearson as the default correlation method; Spearman remains available through project setup.
+* Restored family survival plots to genuine fixed-median High-versus-Low Cox estimates, with group HR, confidence intervals, P values, and separately adjusted group FDR. Retained the additional continuous score-SD estimates in the result tables.
+* Added individual-gene Cox estimates per original expression unit and restored the source Risky/Protective heatmap and count-difference annotation using raw P values.
+* Restored yellow/blue ggsurvplot curves, table-style forest plots, and HR/CI/P annotations. Known day-based follow-up is displayed in years; unspecified source units remain unchanged.
+* Save supported figures as PDF and 300 dpi PNG with a white background.
+* Documented plotting quantities and raw-P significance conventions alongside BH-adjusted result tables. Source-script `logFC` means the tumor-minus-normal expression mean difference and is not automatically log2 fold change.
+* Retained genuine median groups without manual sample reassignment or label reversal. Fixed-direction empirical ROC curves remain unsmoothed and can differ from inherited smoothed ROC output.
+* Preserved custom gene-family definitions, independent analysis modules, bundled data, coverage reporting, and project output management.
+
 # PanFamR 0.3.0
 
 * Added a modular workflow: configure work and result paths and custom gene families once with `panfam_setup()`, then call each analysis separately.

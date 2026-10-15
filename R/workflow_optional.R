@@ -8,6 +8,7 @@
   tables <- list()
   for (panel in intersect(panels, names(datasets))) {
     table <- .panfam_correlations(scores, .panfam_aux_object(datasets[[panel]]), panel, method)
+    attr(table, "correlation_method") <- method
     tables[[paste0(tolower(panel), "_correlations")]] <- table
     .panfam_correlation_plot(table, directory, paste0(tolower(panel), "_correlations"), panel)
   }
@@ -23,6 +24,7 @@
     if (!length(genes)) next
     features <- expression[, genes, drop = FALSE]
     table <- .panfam_correlations(scores, features, panel, method)
+    attr(table, "correlation_method") <- method
     tables[[paste0(safe, "_correlations")]] <- table
     .panfam_correlation_plot(table, directory, paste0(safe, "_correlations"), panel)
   }
@@ -43,11 +45,7 @@
   }))
   table <- .panfam_fdr(rows)
   if (nrow(table)) {
-    plot <- ggplot2::ggplot(table, ggplot2::aes(x = Cancer, y = Gene, fill = rank_biserial)) +
-      ggplot2::geom_tile() + ggplot2::scale_fill_gradient2(low = "#397FB6", mid = "white", high = "#D65A45", limits = c(-1, 1), na.value = "grey90") +
-      ggplot2::theme_minimal() + ggplot2::labs(title = paste(label, "TCGA/GTEx expression"), x = NULL, y = NULL, fill = "Rank effect") +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1))
-    .panfam_save_plot(plot, directory, "tcga_gtex_differences", height = max(4, min(14, length(genes) * 0.22 + 2)))
+    .panfam_original_expression_heatmap(table, directory, "tcga_gtex_differences", label)
   }
   list(tcga_gtex_gene_differences = table,
        tcga_gtex_gene_coverage = data.frame(Gene = genes, Available = genes %in% names(data)))
@@ -150,13 +148,19 @@
     unit <- if (endpoint == "PFS") "GEO source units (not specified)" else "days"
     data <- data.frame(Sample = as.character(clinical$sample_id), Cohort = cohort, Endpoint = endpoint,
                        Score = as.numeric(score[1, ]), Response = .panfam_response(clinical$response),
+                       Response_original = as.character(clinical$response),
                        Time = time, Event = event, Time_unit = unit, stringsAsFactors = FALSE)
-    samples[[cohort]] <- data
     test <- .panfam_difference(data$Score[data$Response %in% "Responder"], data$Score[data$Response %in% "Non-responder"])
     names(test)[names(test) == "n_tumor"] <- "n_responder"
     names(test)[names(test) == "n_normal"] <- "n_non_responder"
     response[[cohort]] <- cbind(Cohort = cohort, test)
     fit <- .panfam_survival_fit(data)
+    data$ScoreGroup <- NA_character_
+    if ("ScoreGroup" %in% names(fit$data)) {
+      index <- match(data$Sample, fit$data$Sample)
+      data$ScoreGroup <- as.character(fit$data$ScoreGroup[index])
+    }
+    samples[[cohort]] <- data
     survival[[cohort]] <- cbind(Cohort = cohort, Endpoint = endpoint, fit$cox)
     km[[cohort]] <- cbind(Cohort = cohort, Endpoint = endpoint, fit$km)
     .panfam_km_plot(fit, file.path(directory, "immunotherapy_KM", paste0(cohort, ".pdf")), paste(label, cohort, endpoint),
@@ -169,23 +173,17 @@
     x
   })
   sample_table <- .panfam_bind(samples)
-  if (nrow(sample_table) && any(!is.na(sample_table$Response))) {
-    plot <- ggplot2::ggplot(sample_table[!is.na(sample_table$Response), , drop = FALSE], ggplot2::aes(x = Response, y = Score, fill = Response)) +
-      ggplot2::geom_boxplot(outlier.shape = NA) + ggplot2::geom_point(position = ggplot2::position_jitter(width = 0.15, seed = 1), size = 0.7) +
-      ggplot2::facet_wrap(~Cohort, scales = "free_y", nrow = 1) + ggplot2::theme_bw() +
-      ggplot2::theme(legend.position = "none", axis.text.x = ggplot2::element_text(angle = 30, hjust = 1)) +
-      ggplot2::labs(title = paste(label, "immunotherapy response"), x = NULL, y = "Within-cohort ssGSEA score")
-    .panfam_save_plot(plot, directory, "immunotherapy_response", width = 13)
-  }
+  .panfam_original_immunotherapy_plot(sample_table, directory, label)
   list(immunotherapy_samples = sample_table, immunotherapy_response = .panfam_fdr(.panfam_bind(response)),
        immunotherapy_survival = .panfam_fdr(.panfam_bind(survival)), immunotherapy_km = .panfam_fdr(.panfam_bind(km)),
        immunotherapy_gene_coverage = .panfam_bind(coverage), immunotherapy_filtering = .panfam_bind(filtering))
 }
 
-.panfam_alterations_analysis <- function(genes, cancers) {
+.panfam_alterations_analysis <- function(genes, cancers, directory = NULL, label = "Gene family") {
   root <- system.file("extdata", "auxiliary", package = "PanFamR")
   files <- list.files(root, pattern = "^alterations_across_samples_.*[.]tsv$", full.names = TRUE)
   rows <- list()
+  altered_samples <- list()
   seen <- character()
   for (file in files) {
     table <- utils::read.delim(file, check.names = FALSE, quote = "", stringsAsFactors = FALSE)
@@ -198,18 +196,37 @@
       status <- as.character(table[[column]])
       keep <- !duplicated(paste(cancer, table[["Sample ID"]], sep = ":"))
       for (type in intersect(cancers, unique(cancer))) {
-        values <- status[keep & cancer == type]
+        selected <- which(keep & cancer == type)
+        values <- status[selected]
         profiled <- !is.na(values) & nzchar(values) & !values %in% c("not profiled", "NA")
         altered <- profiled & values != "no alteration"
         key <- paste(column, type)
         rows[[key]] <- data.frame(Gene = sub(": .*", "", column), Alteration = sub(".*: ", "", column),
-                                  Cancer = type, n_profiled = sum(profiled), n_altered = sum(altered),
+                                  Cancer = type, n_profiled = sum(profiled),
+                                  n_altered = if (any(profiled)) sum(altered) else NA_integer_,
                                   fraction_altered = if (sum(profiled)) sum(altered) / sum(profiled) else NA_real_)
+        if (any(altered)) altered_samples[[key]] <- data.frame(
+          Cancer = type, Sample = as.character(table[["Sample ID"]][selected[altered]]), stringsAsFactors = FALSE)
       }
     }
   }
   available <- unique(sub(": .*", "", seen))
-  list(alteration_frequencies = .panfam_bind(rows), alteration_gene_coverage = data.frame(Gene = genes, Available = genes %in% available))
+  frequencies <- .panfam_bind(rows)
+  distinct_samples <- unique(.panfam_bind(altered_samples))
+  covered_cancers <- if (nrow(frequencies)) unique(frequencies$Cancer[frequencies$n_profiled > 0L]) else character()
+  sample_totals <- data.frame(Cancer = unique(cancers), n_altered_samples = NA_integer_,
+    reason = "No matched profiling data for the requested genes and cancer", stringsAsFactors = FALSE)
+  covered <- sample_totals$Cancer %in% covered_cancers
+  sample_totals$n_altered_samples[covered] <- 0L
+  sample_totals$reason[covered] <- ""
+  if (nrow(distinct_samples)) {
+    counts <- table(distinct_samples$Cancer)
+    matched <- match(sample_totals$Cancer, names(counts))
+    sample_totals$n_altered_samples[!is.na(matched)] <- as.integer(counts[matched[!is.na(matched)]])
+  }
+  if (!is.null(directory)) .panfam_original_alterations_plot(frequencies, sample_totals, directory, label)
+  list(alteration_frequencies = frequencies, alteration_sample_totals = sample_totals,
+       alteration_gene_coverage = data.frame(Gene = genes, Available = genes %in% available))
 }
 
 .panfam_cnv_methylation_analysis <- function(genes, cancers, directory, associations = c("CNV", "Methylation")) {
@@ -230,13 +247,8 @@
   table <- .panfam_bind(rows)
   if (nrow(table)) {
     table <- table[!duplicated(table[, c("Association", "Gene", "Cancer")]), , drop = FALSE]
-    plot <- ggplot2::ggplot(table, ggplot2::aes(x = Cancer, y = Gene, fill = correlation)) +
-      ggplot2::geom_tile() + ggplot2::facet_grid(Association ~ ., scales = "free_y", space = "free_y") +
-      ggplot2::scale_fill_gradient2(low = "#397FB6", mid = "white", high = "#D65A45", limits = c(-1, 1), na.value = "grey90") +
-      ggplot2::theme_minimal() + ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)) +
-      ggplot2::labs(title = paste("Available source", paste(associations, collapse = "/"), "associations"), x = NULL, y = NULL)
     plot_name <- if (length(associations) == 2L) "cnv_methylation" else paste0(tolower(associations), "_associations")
-    .panfam_save_plot(plot, directory, plot_name, height = max(5, min(16, length(genes) * 0.3 + 3)))
+    .panfam_original_cnv_methylation_plot(table, directory, plot_name, paste(associations, collapse = "/"))
   }
   coverage <- .panfam_bind(lapply(associations, function(association) {
     available <- if (nrow(table)) table$Gene[table$Association == association] else character()

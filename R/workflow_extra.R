@@ -29,6 +29,7 @@
         curves[[cancer]] <- data.frame(Cancer = cancer, specificity = fit$specificities,
                                        sensitivity = fit$sensitivities, threshold = fit$thresholds,
                                        stringsAsFactors = FALSE)
+        .panfam_original_roc_plot(fit, row, directory, label, cancer)
       }
     }
     rows[[cancer]] <- row
@@ -41,7 +42,7 @@
     plot_data$y <- plot_data$sensitivity
     plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = x, y = y)) +
       ggplot2::geom_abline(slope = 1, intercept = 0, linetype = 2, colour = "grey60") +
-      ggplot2::geom_path(colour = "#397FB6", linewidth = 0.6) +
+      ggplot2::geom_path(colour = "#56B4E9", linewidth = 0.6) +
       ggplot2::facet_wrap(~Cancer, ncol = min(6L, length(unique(curve$Cancer)))) +
       ggplot2::coord_equal(xlim = c(0, 1), ylim = c(0, 1)) + ggplot2::theme_bw() +
       ggplot2::labs(title = paste(label, "tumor versus normal ROC"),
@@ -65,14 +66,7 @@
                sd = if (length(values) > 1L) stats::sd(values) else NA_real_)
   }))
   if (nrow(tumors) && any(is.finite(tumors$Score))) {
-    plot <- ggplot2::ggplot(tumors[is.finite(tumors$Score), , drop = FALSE],
-                           ggplot2::aes(x = Cancer, y = Score)) +
-      ggplot2::geom_boxplot(fill = "#D65A45", outlier.size = 0.3) +
-      ggplot2::theme_bw() +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)) +
-      ggplot2::labs(title = paste(label, "tumor ssGSEA scores"),
-                    subtitle = "One tumor sample per patient", x = NULL, y = "ssGSEA score")
-    .panfam_save_plot(plot, directory, "tumor_score_distribution")
+    .panfam_original_tumor_plot(tumors, directory, label)
   }
   list(tumor_score_samples = samples, tumor_score_summary = summary)
 }
@@ -111,21 +105,6 @@
   }
   cox <- .panfam_fdr(.panfam_bind(rows))
   km <- .panfam_fdr(.panfam_bind(kms))
-  valid <- cox[is.finite(cox$hr_per_sd) & cox$hr_per_sd > 0, , drop = FALSE]
-  if (nrow(valid)) {
-    valid$value <- log2(valid$hr_per_sd)
-    valid$mark <- ifelse(is.finite(valid$fdr) & valid$fdr < 0.05, "*", "")
-    plot <- ggplot2::ggplot(valid, ggplot2::aes(x = Cancer, y = Gene, fill = value)) +
-      ggplot2::geom_tile() + ggplot2::geom_text(ggplot2::aes(label = mark), size = 3) +
-      ggplot2::facet_wrap(~Endpoint, ncol = min(2L, length(unique(valid$Endpoint)))) +
-      ggplot2::scale_fill_gradient2(low = "#397FB6", mid = "white", high = "#D65A45") +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 90, hjust = 1)) +
-      ggplot2::labs(title = paste(label, "individual-gene survival associations"),
-                    subtitle = "Univariate Cox model per gene-expression SD; * BH-adjusted P < 0.05",
-                    fill = "log2(HR)", x = NULL, y = NULL)
-    .panfam_save_plot(plot, directory, "gene_survival_cox_heatmap", width = 12,
-                      height = max(4, min(16, length(available_genes) * 0.3 + 3)))
-  }
+  .panfam_original_gene_survival_heatmap(cox, directory, label)
   list(gene_survival_cox = cox, gene_survival_km = km, gene_survival_gene_coverage = coverage)
 }

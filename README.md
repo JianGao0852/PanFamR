@@ -15,7 +15,7 @@ options(timeout = 3600)
 remotes::install_github("JianGao0852/PanFamR", upgrade = "never")
 ```
 
-The installation command above can be used after the GitHub repository is published. Bundled inputs occupy approximately 1.29 GiB. Allow about 6 GB of free disk space for download, installation, and cached data files. Large inputs, including the TCGA/GTEx expression matrices, paired expression data, and Braun immunotherapy expression RDS, are distributed in numbered parts of at most 20 MiB. All split inputs are reconstructed automatically in the local cache when first needed. Once installed, analyses use local data without downloading datasets. The full-matrix workflow has been run on a 32 GB RAM Windows computer; selecting fewer cancer types reduces calculation size.
+Bundled inputs occupy approximately 1.29 GiB. Allow about 6 GB of free disk space for download, installation, and cached data files. Large inputs, including the TCGA/GTEx expression matrices, paired expression data, and Braun immunotherapy expression RDS, are distributed in numbered parts of at most 20 MiB. All split inputs are reconstructed automatically in the local cache when first needed. Once installed, analyses use local data without downloading datasets. The full-matrix workflow has been run on a 32 GB RAM Windows computer; selecting fewer cancer types reduces calculation size.
 
 ## 1. Set paths and genes once
 
@@ -30,13 +30,16 @@ project <- panfam_setup(
   work_dir = getwd(),
   output_dir = "results",
   genes = c("COX4I1", "COX5A", "COX5B", "COX6A1", "COX6B1"),
-  family_name = "MyFamily"
+  family_name = "MyFamily",
+  correlation_method = "pearson"
 )
 ```
 
 Replace the paths and gene symbols with your own. An absolute result path is also accepted. Relative result paths are resolved against `work_dir`. Setup records your settings and prepares the output directory; it does not run analyses or change the working directory. Keep using the same `project` object for subsequent steps.
 
 Genes do not need a shared prefix or a predefined family name. Matching is exact and case sensitive. Missing symbols are recorded in coverage tables; a wholly unmatched family produces an error. The default `min_size = 1` permits small families; increase it to require more matched genes.
+
+Pearson correlation is the default, matching the original analysis script. Use `correlation_method = "spearman"` during setup if your study requires Spearman correlation.
 
 ## 2. Run individual analysis functions
 
@@ -99,7 +102,7 @@ results/
     ...
 ```
 
-Step folders contain the available CSV tables and PDF/PNG plots. Repeating a step creates a new numbered folder, preserving its earlier output. Starting a new project in an already configured result directory uses a timestamped sibling directory. The actual root is available as `project$output_dir`.
+Step folders contain the available CSV tables, PDF figures, and PNG figures at 300 dpi with a white background. Repeating a step creates a new numbered folder, preserving its earlier output. Starting a new project in an already configured result directory uses a timestamped sibling directory. The actual root is available as `project$output_dir`.
 
 ```r
 # Inspect a result directly in R.
@@ -141,13 +144,30 @@ For your own expression table, pass `expression = my_expression` to setup. It mu
 
 ## Analysis rules and data coverage
 
-Survival uses a fixed median split and univariate Cox models per score SD. Newly calculated statistical tables use Benjamini-Hochberg adjustment; source CNV/methylation FDR values are retained. Insufficient samples, missing outcomes, and unavailable data are recorded in results and run status.
+### Source plotting styles restored in 0.3.1
 
-The ROC step compares tumor and normal samples within the bundled TCGA data. Higher scores are always treated as predicting tumor, so AUC can be below 0.5; this comparison is exploratory and is not an external validation.
+Version 0.3.1 restores the plotting styles and principal estimates used by the original scripts while retaining custom gene sets, the modular interface, and bundled-data access:
+
+| Module | Figure and interpretation |
+| --- | --- |
+| Gene expression and TCGA/GTEx | A six-bin heatmap using `mean(tumor) - mean(normal)` on the supplied expression scale, with numeric labels and the original cut points of -2, -1, 0, 1, and 2. Cells with raw P >= 0.05 are white. The source script calls this value `logFC`; it is not automatically a log2 fold change. |
+| TMB and MSI | Red/cyan radar plots of the selected correlation coefficient. Pearson is the default; Spearman can be selected during setup. |
+| Immune cells, scores, pathways, and marker panels | Blue/white/red ComplexHeatmap figures; significance stars use raw P values. BH-adjusted values remain available in CSV tables. |
+| Family survival | Table-style forest plots for High versus Low median-score groups, and yellow/blue `ggsurvplot` curves with HR, confidence interval, and P annotations. Known day-based follow-up is displayed in years using 365 days per year; unspecified source units are retained. |
+| Individual-gene survival | The original Risky/Protective categorical heatmap and count-difference annotation, using the direction of the gene-expression Cox HR and raw P < 0.05. |
+| Gene alterations | A count heatmap with stacked alteration-type annotations along rows and columns. Gene/cancer cells count alteration events and can count multiple types in the same sample; the Total row counts unique samples with at least one alteration in the custom input family. Frequency and coverage tables are retained. |
+| CNV and methylation | Source-correlation bubble plots with source FDR shown through border coding; no new source FDR is calculated. |
+| Immunotherapy | Within-cohort median-score High/Low groups, Yes/No/SD response-composition stacked bars where source categories are available, and accompanying KM curves. |
+
+Family Cox plots primarily report `hr_high_vs_low`, `group_ci_lower`, `group_ci_upper`, `group_p_value`, and `group_fdr`. Groups are fixed as **Low: score <= median; High: score > median**. The continuous model remains available separately through `hr_per_sd`, `ci_lower`, `ci_upper`, `p_value`, and `fdr`, where HR is per score standard deviation. Individual-gene Cox tables also include `hr_per_unit`, `unit_ci_lower`, `unit_ci_upper`, and `unit_p_value` for the original expression unit. These estimates must be interpreted according to the model named by their columns and figure labels.
+
+Newly calculated statistical tables use Benjamini-Hochberg adjustment across valid tests within each result table; group-model and continuous-model P values are adjusted separately. Raw-P plotting conventions are explicitly labelled and do not replace the adjusted values. Source CNV/methylation FDR values are retained. Insufficient samples, missing outcomes, and unavailable data are recorded in results and run status.
+
+The restored plots do not imply that every number must match every inherited script output. Samples are never manually moved between median groups, and High/Low labels are not reversed. The ROC step retains an empirical, unsmoothed curve with a fixed direction: higher scores predict tumor. It therefore differs from the original script's smoothed ROC, and AUC below 0.5 is retained. This is a comparison within the bundled TCGA data and is not an external validation.
 
 Mutation, CNV, and methylation inputs cover the source project's gene panels rather than every human gene. Custom families are searched by gene symbol. Unsupported genes are reported explicitly, and unavailable results are marked `skipped` or `partial`; these statuses do not mean a negative biological finding. TCGA/GTEx comparisons pool source-labelled normal samples and do not correct study or batch effects.
 
-Immunotherapy uses baseline samples where annotated, excludes known non-immunotherapy controls, and retains one sample per patient. GSE135222 uses its native expression TSV and bundled GEO metadata with **PFS**; the other cohorts use OS. The GSE135222 PFS unit is not specified in GEO, so source units are retained. Unknown outcomes remain missing. Non-finite expression genes are excluded and recorded.
+Immunotherapy uses baseline samples where annotated, retains and records samples with an unannotated treatment time, excludes known non-immunotherapy controls, and retains one sample per patient. Response-composition figures preserve available source categories; they are distinct from the separate responder/non-responder comparison tables. GSE135222 uses its native expression TSV and bundled GEO metadata with **PFS**; the other cohorts use OS. The GSE135222 PFS unit is not specified in GEO, so source units are retained. Unknown outcomes remain missing. Non-finite expression genes are excluded and recorded.
 
 ## Data access and optional batch interface
 
@@ -161,6 +181,6 @@ Other dataset keys include `tcga_gtex`, `paired_tpm`, `ALL_OS`, `DSS_PFI_DFI`, `
 
 For users who prefer a batch run, `panfam_analyze()` remains available. It is optional; the modular workflow above does not require it. `panfam_score()` also remains available for direct scoring without a project.
 
-## Before publishing
+## Data provenance and license
 
 Maintainer: Serena (<g512827252@outlook.com>). Report problems through [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues). Record source URLs, citations, and redistribution terms for the author-supplied datasets in `inst/extdata/README-data.md`. The MIT license covers package code and does not replace dataset-specific terms. MSigDB GMT collections are not bundled; custom gene vectors work directly, while bundled pathway-score tables require their own provenance and terms to be documented.
