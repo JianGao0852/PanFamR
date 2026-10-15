@@ -1,0 +1,16 @@
+.Rhistory
+.RData
+.Rproj.user
+*.Rproj
+*.Rdata
+*.rdata
+*.rds
+*.RDS
+*.xlsx
+*.pdf
+*.tsv
+*.csv
+.DS_Store
+*.RData
+!inst/extdata/
+!inst/extdata/**
