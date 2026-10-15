@@ -1,0 +1,6 @@
+^\.git$
+^\.gitignore$
+^\.gitattributes$
+^\.Rproj\.user$
+^.*\.Rproj$
+^README[.]zh-CN[.]md$

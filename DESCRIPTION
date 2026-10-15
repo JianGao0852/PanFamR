@@ -1,0 +1,42 @@
+Package: PanFamR
+Title: Pan-Cancer ssGSEA Analysis and Visualization
+Version: 0.3.0
+Authors@R: person("Serena", email = "g512827252@outlook.com", role = c("aut", "cre"))
+Description: Calculates single-sample gene set enrichment scores and provides
+    functions for pan-cancer expression, survival, mutation, and immune
+    association analyses and visualizations. Includes bundled TCGA/GTEx
+    expression, clinical, and supporting analysis datasets, and accepts
+    user-defined gene sets for ssGSEA scoring.
+License: MIT + file LICENSE
+Encoding: UTF-8
+URL: https://github.com/JianGao0852/PanFamR
+BugReports: https://github.com/JianGao0852/PanFamR/issues
+Depends: R (>= 4.3.0)
+Imports:
+    BiocParallel,
+    ComplexHeatmap,
+    GSVA (>= 1.50.0),
+    circlize,
+    dplyr,
+    fmsb,
+    forestplot,
+    ggplot2,
+    ggpubr,
+    graphics,
+    grid,
+    grDevices,
+    patchwork,
+    pROC,
+    psych,
+    readxl,
+    reshape2,
+    scales,
+    stats,
+    stringr,
+    survival,
+    survminer,
+    tibble,
+    tidyr,
+    tools,
+    utils
+

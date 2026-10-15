@@ -1,0 +1,25 @@
+# Marker panels retained from the author's analysis source.
+.panfam_marker_lists <- function() {
+list(`Immune checkpoints` = c("CD274", "CTLA4", "HAVCR2", "LAG3", 
+"PDCD1", "PDCD1LG2", "SIGLEC15", "TIGIT"), Chemokines = c("CCL1", 
+"CCL2", "CCL3", "CCL4", "CCL5", "CCL7", "CCL8", "CCL11", "CCL13", 
+"CCL14", "CCL15", "CCL16", "CCL17", "CCL18", "CCL19", "CCL20", 
+"CCL21", "CCL22", "CCL23", "CCL24", "CCL25", "CCL26", "CCL28", 
+"CX3CL1", "CXCL1", "CXCL2", "CXCL3", "CXCL5", "CXCL6", "CXCL8", 
+"CXCL9", "CXCL10", "CXCL11", "CXCL12", "CXCL13", "CXCL14", "CXCL16", 
+"CXCL17"), `Chemokine receptors` = c("CCR1", "CCR2", "CCR3", 
+"CCR4", "CCR5", "CCR6", "CCR7", "CCR8", "CCR9", "CCR10", "CXCR1", 
+"CXCR2", "CXCR3", "CXCR4", "CXCR5", "CXCR6", "XCR1", "CX3R1"), 
+    `Immune stimulators` = c("CD27", "CD276", "CD28", "CD40", 
+    "CD40LG", "CD48", "CD70", "CD80", "CD86", "CXCL12", "CXCR4", 
+    "ENTPD1", "HHLA2", "ICOS", "ICOSLG", "IL2RA", "IL6", "IL6R", 
+    "KLRC1", "KLRK1", "LTA", "MICB", "NT5E", "PVR", "RAET1E", 
+    "TMIGD2", "TNFRSF13B", "TNFRSF13C", "TNFRSF14", "TNFRSF17", 
+    "TNFRSF18", "TNFRSF25", "TNFRSF4", "TNFRSF8", "TNFRSF9", 
+    "TNFSF13", "TNFSF13B", "TNFSF14", "TNFSF15", "TNFSF18", "TNFSF4", 
+    "TNFSF9", "ULBP1"), `Immune inhibitors` = c("ADORA2A", "BTLA", 
+    "CD160", "CD244", "CD274", "CD96", "CSF1R", "CTLA4", "HAVCR2", 
+    "IDO1", "IL10", "IL10RB", "KDR", "KIR2DL1", "KIR2DL3", "LAG3", 
+    "LGALS9", "PDCD1", "PDCD1LG2", "TGFB1", "TGFBR1", "TIGIT", 
+    "VTCN1"))
+}
