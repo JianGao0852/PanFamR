@@ -183,4 +183,6 @@ For users who prefer a batch run, `panfam_analyze()` remains available. It is op
 
 ## Data provenance and license
 
-Maintainer: Serena (<g512827252@outlook.com>). Report problems through [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues). Record source URLs, citations, and redistribution terms for the author-supplied datasets in `inst/extdata/README-data.md`. The MIT license covers package code and does not replace dataset-specific terms. MSigDB GMT collections are not bundled; custom gene vectors work directly, while bundled pathway-score tables require their own provenance and terms to be documented.
+Maintainer: Serena (<g512827252@outlook.com>). Report problems through [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues).
+
+The [dataset provenance and reference record](inst/DATA_SOURCES.zh-CN.md) maps TCGA, GTEx, GEO, TIGER, MSigDB Hallmark, and GENCODE to the bundled inputs and provides cohort papers and 16 references. Some download portals, versions, algorithms, and precomputed-score generation records remain unconfirmed. Patient-level TMB/MSI and CNV/methylation tables are not attributed to MSigDB. The MIT license covers package code and does not replace dataset-specific terms; adding citations does not confirm all redistribution conditions. MSigDB GMT collections are not bundled.

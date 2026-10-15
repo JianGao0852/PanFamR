@@ -33,10 +33,25 @@ and `RCC-Braun_2020.Response.Rds` are split into numbered `.partNN` pieces
 of at most 20 MiB. PanFamR automatically reconstructs all split inputs in
 the user's R cache directory when the corresponding dataset is first needed.
 
-The source workspace did not include a complete provenance and license record
-for every table. Before making a public GitHub release, the maintainer must
-record the original source, citation, and redistribution terms for each
-third-party dataset. The MIT license in the package applies to package code;
-it does not grant rights to redistribute the bundled research data. MSigDB
-GMT collections are intentionally not bundled; users may pass their own gene
-sets to `panfam_analyze()`.
+## Sources and references
+
+See [the detailed provenance and reference record](../DATA_SOURCES.zh-CN.md)
+for the file-by-file audit, original cohort accessions, 16 references, and
+remaining gaps (reviewed 2026-10-15). The identifiable resources include TCGA,
+GTEx, GEO, TIGER, MSigDB Hallmark, and the supplied GENCODE v22-derived
+annotation. The maintainer confirmed TIGER as the source of the supplied
+immunotherapy RDS collection; the GSE135222 default input separately uses
+the native expression TSV and official GEO sample mapping described above.
+
+TMB/MSI download sources and algorithms, the actual CNV/methylation export
+portal, and some precomputed immune-score generation records remain
+unconfirmed. These patient-level tables must not be attributed to MSigDB
+merely because the original workspace also contains Hallmark signatures.
+Database and method references do not establish a missing file-processing
+chain or confirm all redistribution conditions. Original download dates and
+release versions were not available for many supplied files.
+
+The MIT license applies to package code; it does not grant rights to
+redistribute third-party research data. Consult the applicable source terms
+and attribution requirements. MSigDB GMT collections are intentionally not
+bundled; users may pass their own gene sets to `panfam_analyze()`.

@@ -1,5 +1,6 @@
 # PanFamR 0.3.1
 
+* Added a file-level data-provenance record and 16 database, cohort, and method references. Documented maintainer-confirmed TIGER acquisition, the separate GEO input used for GSE135222, and unresolved download/version/redistribution records without attributing patient-level TMB/MSI or CNV/methylation tables to MSigDB.
 * Restored the original plotting styles throughout the modular workflow: six-bin expression heatmaps with numeric labels, red/cyan TMB/MSI radar plots, blue/white/red ComplexHeatmap immune panels, alteration-count heatmaps with stacked type annotations, source CNV/methylation bubble plots, and immunotherapy response-composition bars with KM curves.
 * Retained alteration frequency and coverage tables. Alteration heatmap cells count gene/cancer events, allowing multiple alteration types per sample; the Total row counts unique samples with at least one alteration in the user-defined input family.
 * Restored Pearson as the default correlation method; Spearman remains available through project setup.

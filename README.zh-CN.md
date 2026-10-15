@@ -183,4 +183,6 @@ panfam_survival(project, endpoints = c("OS", "PFI"))
 
 完整批量运行仍可使用 `panfam_analyze()`；分步骤调用不需要它。可直接编辑 `inst/scripts/custom-gene-family-analysis.R`，按其中标注逐步运行。
 
-维护者为 Serena，联系邮箱为 <g512827252@outlook.com>。使用问题可在 [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues) 反馈。`inst/extdata/README-data.md` 中的数据来源、引用和再分发条款说明仍在补充。MIT 许可证适用于代码，不替代各数据集自身的条款。MSigDB GMT 文件未内置，自定义基因向量可以直接使用。
+维护者为 Serena，联系邮箱为 <g512827252@outlook.com>。使用问题可在 [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues) 反馈。
+
+[数据来源与参考文献](inst/DATA_SOURCES.zh-CN.md) 列出 TCGA、GTEx、GEO、TIGER、MSigDB Hallmark、GENCODE 与各输入文件的对应关系、具体队列论文及 16 条参考文献。TMB/MSI 原下载渠道和算法、CNV/甲基化导出门户，以及部分免疫预计算表的生成记录尚待核实，未归为 MSigDB 来源。MIT 许可证适用于代码，不替代各数据集自身的条款；补充引用不代表全部数据再分发条件已核清。MSigDB GMT 文件未内置，自定义基因向量可以直接使用。
