@@ -18,6 +18,11 @@ project <- panfam_setup(
   cancers = NULL # Replace NULL with c("BRCA", "LUAD") to select cancer types.
 )
 
+# Optional: count input sample rows before scoring (tables only).
+# sample_result <- panfam_sample_summary(project)
+# sample_result$tables$Project$sample_summary
+# tcga_gtex_samples <- panfam_sample_summary(project, data_source = "tcga_gtex")
+
 # ---- 3. Calculate ssGSEA scores ----
 scores <- panfam_ssgsea(project)
 

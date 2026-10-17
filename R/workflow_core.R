@@ -92,6 +92,7 @@
     }))
   })))
   .panfam_original_score_plot(scores, score_table, directory, label)
+  .panfam_original_single_score_plots(scores, score_table, directory, label)
   if (nrow(gene_table)) {
     .panfam_original_expression_heatmap(gene_table, directory, "gene_expression_differences", label)
   }

@@ -10,3 +10,4 @@
 }
 \value{A data frame with sample-level \code{Score}, \code{Cancer}, and \code{Group} columns.}
 \description{Calculates ssGSEA scores for one user-defined gene set.}
+\details{The default \code{output_file = NULL} returns scores without automatically writing an RData file. Supply \code{output_file} explicitly to save one, or use \code{\link{panfam_ssgsea}} for automatic scoring and output within a configured project.}

@@ -34,6 +34,17 @@
 \alias{ssGsea_Score_ROC}
 \alias{ssGsea_Score_Tumor_Normal}
 \title{Legacy Pan-Cancer Analysis Functions}
+\usage{
+ssGsea_Score_Tumor_Normal(df, cancer, tpm = NULL)
+ssGsea_Score_ROC(df, cancer, tpm = NULL)
+}
+\arguments{
+\item{df}{A sample-level score data frame containing \code{Score}, \code{Cancer} and \code{Group}, with sample IDs as row names.}
+\item{cancer}{Cancer label to analyze.}
+\item{tpm}{Optional expression metadata containing \code{Cancer} and \code{Group}. If \code{NULL}, labels are taken directly from \code{df}, preserving two-argument calls without loading an expression matrix. If supplied, labels are matched to score rows by exact sample IDs.}
+}
 \description{Additional analysis and plotting functions adapted from the original PanFamR scripts. These functions cover expression differences, survival, mutation, CNV, methylation, TMB/MSI, immune association, and immunotherapy cohorts.}
-\details{Functions generally accept an expression or score table and may write figures or intermediate files to the current working directory. Inputs not bundled for a particular analysis must be supplied by the user in the format expected by the original workflow. The generic one-call workflow is \code{panfam_analyze()}. See the README and \code{panfam_data_files()} for bundled data.}
+\details{Functions generally accept an expression or score table and may write figures or intermediate files to the current working directory. Inputs not bundled for a particular analysis must be supplied by the user in the format expected by the original workflow. The modular workflow starts with \code{\link{panfam_setup}} and the functions documented in \code{\link{panfam_steps}}; \code{panfam_analyze()} is an optional batch interface. See the README and \code{panfam_data_files()} for bundled data.
+
+\code{ssGsea_Score_Tumor_Normal()} compares Normal versus Tumor scores within one cancer; it does not perform stage or grade analysis. The legacy ROC retains its smoothed curve and automatic direction, while \code{panfam_roc()} uses a fixed higher-score-predicts-tumor direction and an empirical unsmoothed curve. Retained names do not imply identical parameter requirements, filtering or statistical output between all legacy functions and the modular workflow.}
 \value{Most plotting functions save a PDF and return a plot or \code{NULL}; consult the function source for the exact return value and arguments.}

@@ -1,6 +1,6 @@
 # PanFamR 中文分步骤入门
 
-安装好 PanFamR 后，先设置工作目录、结果目录和自定义基因家族，再逐一调用需要的分析函数。每个函数自动读取内置数据，生成这一部分的结果表和图片。
+安装好 PanFamR 后，先设置工作目录、结果目录和自定义基因家族，再逐一调用需要的分析函数。各函数自动读取内置数据，生成对应结果表及适用的图片。
 
 ## 1. 安装一次
 
@@ -41,6 +41,19 @@ project <- panfam_setup(
 
 相关分析默认使用原始分析脚本的 Pearson 方法。若研究设计需要 Spearman 方法，在设置时改为 `correlation_method = "spearman"`。
 
+### 可选：评分前先查看样本数量
+
+```r
+# 汇总 TCGA 输入；若设置时传入自带 expression，则汇总该表达表。
+sample_result <- panfam_sample_summary(project)
+sample_result$tables$Project$sample_summary
+
+# 如需查看内置 TCGA/GTEx 整合数据，选择这个来源。
+tcga_gtex_samples <- panfam_sample_summary(project, data_source = "tcga_gtex")
+```
+
+函数会打印并保存含 `Cancer`、`Normal`、`Tumor` 三列的表，末行为 `Total` 总计，并遵循设置中的 `cancers` 筛选。这里统计输入数据的样本行数，不是独立患者数，也不等于各下游模块匹配、筛选后的实际分析样本数。每次调用只按项目汇总一次，不会因定义多个基因家族重复统计；不需要先计算 ssGSEA，也不依赖家族基因是否匹配。这个步骤只生成统计表，不生成图片。`data_source = "tcga_gtex"` 始终读取内置整合数据，与设置时传入的自带表达表相互独立。
+
 ## 3. 逐一运行需要的部分
 
 在 RStudio 中选中需要运行的那一行或那一段，点击 **Run**，或按 **Ctrl+Enter**。
@@ -68,13 +81,15 @@ msi_result <- panfam_msi(project)
 
 | 需要的分析 | 运行这一行 |
 | --- | --- |
+| TCGA 或自带表达输入的样本数量 | `panfam_sample_summary(project)` |
+| 内置 TCGA/GTEx 整合数据的样本数量 | `panfam_sample_summary(project, data_source = "tcga_gtex")` |
 | ssGSEA 基因家族评分 | `panfam_ssgsea(project)` |
-| TCGA 基因表达差异和家族评分差异 | `panfam_expression(project)` |
+| TCGA 基因表达差异和家族评分差异，含单癌独立评分图 | `panfam_expression(project)` |
 | 仅肿瘤样本的评分分布 | `panfam_tumor_scores(project)` |
 | 肿瘤/正常评分探索性 ROC | `panfam_roc(project)` |
 | TCGA/GTEx 基因表达比较 | `panfam_tcga_gtex(project)` |
 | 同一患者的肿瘤/正常配对评分比较 | `panfam_paired(project)` |
-| OS、DSS、PFI、DFI 生存分析 | `panfam_survival(project, endpoints = c("OS", "DSS", "PFI", "DFI"))` |
+| OS、DSS、PFI、DFI 生存分析，含 KM 及伴随风险表图 | `panfam_survival(project, endpoints = c("OS", "DSS", "PFI", "DFI"))` |
 | 家族中各个基因的生存分析 | `panfam_gene_survival(project, endpoints = "OS")` |
 | TMB 关联 | `panfam_tmb(project)` |
 | MSI 关联 | `panfam_msi(project)` |
@@ -96,10 +111,14 @@ msi_result <- panfam_msi(project)
 
 ## 4. 查看每一步的结果
 
-输出按“家族 → 分析部分”组织：
+分析结果按“家族 → 分析部分”组织；样本数量汇总保存在项目级目录：
 
 ```text
 results/
+  sample_summary_tcga/
+    sample_summary.csv
+    sample_summary_metadata.csv
+  sample_summary_tcga_gtex/
   MyFamily/
     ssgsea/
     expression/
@@ -109,6 +128,10 @@ results/
 ```
 
 各部分文件夹中保存可用的 CSV 结果表、PDF 图片和 300 dpi 白底 PNG 图片。重复运行同一部分会生成带编号的新文件夹，保留先前结果；在已有分析设置的结果目录再次创建项目时，会生成带时间戳的相邻目录。实际结果根目录可以通过 `project$output_dir` 查看。
+
+样本汇总目录只保存两个 CSV 表和 `result.rds`，没有图片。数量表通过 `sample_result$tables$Project$sample_summary` 查看；数据来源、计数单位和所选癌种记录在 `sample_result$tables$Project$sample_summary_metadata`；保存地址为 `sample_result$output_dirs[["Project"]]`。该步骤也会列入 `panfam_status()` 和 HTML 结果索引。再次调用会保存到 `sample_summary_tcga_002` 等新目录，保留旧结果。
+
+表达模块除多癌种评分图外，还会为 Normal/Tumor 两组均有有限评分的癌种生成 `plots/score_tumor_normal_<Cancer>.pdf` 和 `.png`。生存模块保留 `plots/survival_KM/<Endpoint>_<Cancer>` 主图，并以相同拟合和分组另存文件名带 `_with_risk_table` 的风险表图；免疫治疗 KM 也有伴随风险表图。原函数名及对应模块可查阅[完整函数对照](inst/doc/function-map.zh-CN.md)。
 
 也可以直接在 R 中查看：
 
@@ -150,6 +173,8 @@ panfam_survival(project, endpoints = c("OS", "PFI"))
 
 单个家族用 `genes`，多个家族用带名称的 `gene_sets`，二者选择其一。家族名可以使用中文，程序自动生成不同的安全目录名。要更换家族、癌种或其他参数时，重新调用 `panfam_setup()` 创建项目。完整矩阵已在 32 GB 内存的 Windows 电脑上实跑；先选少量癌种可缩小计算规模。
 
+癌种会在评分前筛选，因此改变 `cancers` 也可能改变评分的归一化范围。比较不同癌种选择的项目时，应结合各自的评分范围解释结果。
+
 ## 数据覆盖和分析规则
 
 ### 0.3.1 恢复原始绘图风格和主要估计量
@@ -182,6 +207,8 @@ panfam_survival(project, endpoints = c("OS", "PFI"))
 `panfam_data_files()` 可以列出内置文件。需要自带表达数据时，在设置中传入 `expression = my_expression`：每行一个样本，行名为唯一样本 ID，包含 `Cancer`、`Group` 和以基因符号命名的数值表达列；`Group` 取值为 `Tumor` 或 `Normal`。内置临床等辅助数据只在样本 ID 能匹配时可用。
 
 完整批量运行仍可使用 `panfam_analyze()`；分步骤调用不需要它。可直接编辑 `inst/scripts/custom-gene-family-analysis.R`，按其中标注逐步运行。
+
+已经自行读入表达表的用户，也可以调用兼容接口 `counts <- get_all_tpmsample(tpm)`。它只读取表中的 `Cancer` 和 `Group` 列，打印不带行号的数量表，并不可见返回该数据框；`Group` 必须为 `Normal` 或 `Tumor`，缺少某一类时补零。癌种或分组含缺失值、空标签或未知分组时会报错，避免静默漏计。这个基础接口不保存文件；需要自动读取内置数据并保存结果时，直接使用 `panfam_sample_summary()`。更详细的例子见[样本数量汇总教程](inst/doc/sample-summary.zh-CN.md)。
 
 维护者为 Serena，联系邮箱为 <g512827252@outlook.com>。使用问题可在 [GitHub Issues](https://github.com/JianGao0852/PanFamR/issues) 反馈。
 

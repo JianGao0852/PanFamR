@@ -96,6 +96,37 @@
   invisible(list(boxplot = plot, jitter = jitter_plot))
 }
 
+.panfam_original_single_score_plots <- function(scores, score_table, directory, label) {
+  for (cancer in sort(unique(as.character(scores$Cancer)))) {
+    values <- scores[scores$Cancer == cancer & scores$Group %in% c("Normal", "Tumor") &
+                       is.finite(scores$Score), , drop = FALSE]
+    if (!all(c("Normal", "Tumor") %in% as.character(values$Group))) next
+    values$Group <- factor(as.character(values$Group), levels = c("Normal", "Tumor"))
+    plot <- ggpubr::ggboxplot(values, x = "Group", y = "Score", color = "Group",
+                              add = "jitter", palette = "jco", xlab = cancer,
+                              ylab = paste(label, "ssGSEA score")) +
+      ggpubr::theme_classic2(base_size = 12) +
+      ggplot2::theme(legend.position = "none", axis.title.x = ggplot2::element_text(size = 14),
+                     axis.text.x = ggplot2::element_text(size = 12),
+                     axis.title.y = ggplot2::element_text(size = 14),
+                     axis.text.y = ggplot2::element_text(size = 12),
+                     panel.border = ggplot2::element_rect(color = "black", fill = NA))
+    row <- score_table[score_table$Cancer == cancer, , drop = FALSE]
+    if (nrow(row) == 1L && is.finite(row$p_value)) {
+      score_range <- range(values$Score)
+      offset <- max(diff(score_range) * 0.08, abs(score_range[2L]) * 0.05, .Machine$double.eps)
+      annotation <- data.frame(group1 = "Normal", group2 = "Tumor",
+                                label = .panfam_original_significance(row$p_value),
+                                y.position = score_range[2L] + offset)
+      plot <- plot + ggpubr::stat_pvalue_manual(annotation, label = "label", tip.length = 0.01, size = 4)
+    }
+    .panfam_save_plot(plot, directory,
+                      paste0("score_tumor_normal_", gsub("[^A-Za-z0-9_.-]", "_", cancer)),
+                      width = 5, height = 4)
+  }
+  invisible(NULL)
+}
+
 .panfam_original_paired_plot <- function(pairs, directory, label, paired_table = NULL) {
   required <- c("Patient", "Cancer", "Score_tumor", "Score_normal")
   if (!all(required %in% names(pairs))) stop("Paired plot requires matched patient scores.", call. = FALSE)

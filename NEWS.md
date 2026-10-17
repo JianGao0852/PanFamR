@@ -1,3 +1,14 @@
+# PanFamR 0.3.2
+
+* Added `panfam_sample_summary()` to count Normal and Tumor sample rows by cancer type before scoring. It reads the project's TCGA/custom expression input or the bundled TCGA/GTEx data, respects selected cancer types, and does not require ssGSEA scores or matched family genes.
+* Save project-level sample counts and source/counting metadata as CSV with `result.rds`; include the step in status history and the HTML result index. Multiple gene families share one summary per call, and repeated calls preserve earlier output in numbered directories. This step generates tables, not figures.
+* Added the compatible `get_all_tpmsample()` helper, which prints counts without row numbers and invisibly returns a Cancer/Normal/Tumor data frame with a final Total row. Absent groups are filled with zero; invalid or missing labels are rejected rather than silently omitted. Counts represent input rows, not unique patients.
+* Added English/Chinese usage documentation and a bundled sample-summary tutorial. No additional dependencies are required.
+* Added separate `score_tumor_normal_<Cancer>` plots to the expression step, alongside the existing pan-cancer score figures, using the corresponding `score_differences` results.
+* Added companion KM figures with risk tables for the same fitted groups in TCGA survival and immunotherapy analyses, preserving the existing main figures.
+* Restored two-argument calls to legacy `ssGsea_Score_Tumor_Normal(df, cancer)` and `ssGsea_Score_ROC(df, cancer)`: omitted expression metadata are read from the score table; explicitly supplied metadata use exact sample-ID matching.
+* Added a full original-function-to-module guide, including the immune/pathway panels and single-cancer analyses. Documented retained old plotting variants and differences in filtering, adjustment, score normalization and ROC settings.
+
 # PanFamR 0.3.1
 
 * Added a file-level data-provenance record and 16 database, cohort, and method references. Documented maintainer-confirmed TIGER acquisition, the separate GEO input used for GSE135222, and unresolved download/version/redistribution records without attributing patient-level TMB/MSI or CNV/methylation tables to MSigDB.

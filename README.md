@@ -1,6 +1,6 @@
 # PanFamR
 
-PanFamR is an R package for step-by-step pan-cancer analysis of custom gene families and signatures. Set your working directory, result directory, and gene symbols once. Then run the function for each analysis you want. The package loads its bundled data and saves the corresponding tables and figures automatically.
+PanFamR is an R package for step-by-step pan-cancer analysis of custom gene families and signatures. Set your working directory, result directory, and gene symbols once. Then run the function for each analysis you want. The package loads its bundled data and saves the corresponding tables and, where applicable, figures automatically.
 
 中文分步骤入门见 [README.zh-CN.md](README.zh-CN.md). A ready-to-edit script is provided in [inst/scripts/custom-gene-family-analysis.R](inst/scripts/custom-gene-family-analysis.R).
 
@@ -41,6 +41,19 @@ Genes do not need a shared prefix or a predefined family name. Matching is exact
 
 Pearson correlation is the default, matching the original analysis script. Use `correlation_method = "spearman"` during setup if your study requires Spearman correlation.
 
+### Optional: inspect sample counts before scoring
+
+```r
+# TCGA input, or your expression table supplied during setup.
+sample_result <- panfam_sample_summary(project)
+sample_result$tables$Project$sample_summary
+
+# Alternatively, summarize the bundled TCGA/GTEx input.
+tcga_gtex_samples <- panfam_sample_summary(project, data_source = "tcga_gtex")
+```
+
+Each call prints and saves a table with `Cancer`, `Normal`, and `Tumor` columns and a final `Total` row. The selected cancer types in `project$cancers` are respected. Counts represent input sample rows, not unique patients or the final matched sample sizes of downstream analyses. This project-level step runs once per call, regardless of the number of gene families; it does not require ssGSEA scores or matched family genes and does not generate a figure. The TCGA/GTEx option always uses the bundled integrated data, independently of a custom expression table supplied during setup.
+
 ## 2. Run individual analysis functions
 
 In RStudio, select the line or block you want and click **Run** or press **Ctrl+Enter**.
@@ -64,13 +77,15 @@ Each call runs the requested analysis and saves its results immediately. Steps t
 
 | Analysis | Function |
 | --- | --- |
+| TCGA/custom-input sample counts | `panfam_sample_summary(project)` |
+| Bundled TCGA/GTEx sample counts | `panfam_sample_summary(project, data_source = "tcga_gtex")` |
 | ssGSEA family scoring | `panfam_ssgsea(project)` |
-| TCGA expression and score differences | `panfam_expression(project)` |
+| TCGA expression and score differences, including separate single-cancer score plots | `panfam_expression(project)` |
 | Tumor-only score distributions | `panfam_tumor_scores(project)` |
 | Exploratory tumor/normal score ROC | `panfam_roc(project)` |
 | TCGA/GTEx gene-expression comparison | `panfam_tcga_gtex(project)` |
 | Matched tumor/normal score comparison | `panfam_paired(project)` |
-| OS, DSS, PFI, or DFI survival | `panfam_survival(project, endpoints = c("OS", "DSS", "PFI", "DFI"))` |
+| OS, DSS, PFI, or DFI survival, with KM figures and companion risk tables | `panfam_survival(project, endpoints = c("OS", "DSS", "PFI", "DFI"))` |
 | Individual-gene survival | `panfam_gene_survival(project, endpoints = "OS")` |
 | TMB association | `panfam_tmb(project)` |
 | MSI association | `panfam_msi(project)` |
@@ -90,10 +105,14 @@ Each call runs the requested analysis and saves its results immediately. Steps t
 
 ## 3. Find results and check progress
 
-Results are organized by family and step:
+Analysis results are organized by family and step; sample summaries are stored at the project level:
 
 ```text
 results/
+  sample_summary_tcga/
+    sample_summary.csv
+    sample_summary_metadata.csv
+  sample_summary_tcga_gtex/
   MyFamily/
     ssgsea/
     expression/
@@ -103,6 +122,10 @@ results/
 ```
 
 Step folders contain the available CSV tables, PDF figures, and PNG figures at 300 dpi with a white background. Repeating a step creates a new numbered folder, preserving its earlier output. Starting a new project in an already configured result directory uses a timestamped sibling directory. The actual root is available as `project$output_dir`.
+
+Sample-summary folders contain the two CSV tables and `result.rds`, with no figure. Access the counts through `sample_result$tables$Project$sample_summary`, the source/counting metadata through `sample_result$tables$Project$sample_summary_metadata`, and the folder through `sample_result$output_dirs[["Project"]]`. These steps also appear in `panfam_status()` and the HTML result index. Repeated calls preserve previous files in numbered folders such as `sample_summary_tcga_002`.
+
+The expression step saves separate Normal/Tumor family-score plots as `plots/score_tumor_normal_<Cancer>.pdf` and `.png` where both sample groups have finite scores, alongside the pan-cancer plots. Survival retains the main `plots/survival_KM/<Endpoint>_<Cancer>` figures and adds companions ending `_with_risk_table`, using the same fit and groups. Immunotherapy KM figures also have companion risk-table figures. See the [original-function-to-module guide](inst/doc/function-map.zh-CN.md) for all original function names and their module equivalents.
 
 ```r
 # Inspect a result directly in R.
@@ -139,6 +162,8 @@ panfam_survival(project, endpoints = c("OS", "PFI"))
 ```
 
 Provide either `genes` for a single family or `gene_sets` for named families. Family labels can contain Chinese characters; distinct safe folder names are generated automatically. To change genes, cancer types, or other settings, create a new project with `panfam_setup()`.
+
+Cancer selection occurs before scoring and can change the score-normalization range. Scores from projects with different cancer selections should therefore be interpreted within their respective scoring contexts.
 
 For your own expression table, pass `expression = my_expression` to setup. It must have one sample per row, unique sample row names, `Cancer` and `Group` columns, and numeric gene-expression columns named by gene symbol. `Group` must be `Tumor` or `Normal`. Bundled clinical and association data are usable only where sample IDs match.
 
@@ -180,6 +205,8 @@ panfam_data_path("clinical/ALL_OS.Rdata")
 Other dataset keys include `tcga_gtex`, `paired_tpm`, `ALL_OS`, `DSS_PFI_DFI`, `All_TMB`, `All_MSI`, `ssgsea_immucells`, `immuscore`, `TME_Pathaway_GSVA_Score`, and `HALLMARK_GSVA_Score`. Change the reconstructed-data cache with `options(PanFamR.cache_dir = "path/to/cache")` before loading data.
 
 For users who prefer a batch run, `panfam_analyze()` remains available. It is optional; the modular workflow above does not require it. `panfam_score()` also remains available for direct scoring without a project.
+
+For an expression table already loaded in R, the compatible helper `counts <- get_all_tpmsample(tpm)` prints the same count layout and invisibly returns the data frame. Only its `Cancer` and `Group` columns are used; `Group` must contain `Normal` or `Tumor`. A missing category is filled with zero. Missing, blank, or unsupported labels produce an error rather than silently dropping rows. The helper does not save files; use `panfam_sample_summary()` for automatic loading and project output. See the [sample-summary tutorial](inst/doc/sample-summary.zh-CN.md) for examples.
 
 ## Data provenance and license
 

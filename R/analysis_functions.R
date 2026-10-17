@@ -1475,12 +1475,50 @@ ssGsea_Score_pan_cancer_fores <- function(df,Target){
 
 #基于基因集的癌症类型特异性表达分析##################
 #按临床信息分组的基于基因组的表达分析######
-ssGsea_Score_Tumor_Normal <- function(df, cancer, tpm) {
+.panfam_legacy_score_groups <- function(df, cancer, tpm = NULL) {
+  if (!is.character(cancer) || length(cancer) != 1L || is.na(cancer) || !nzchar(cancer)) {
+    stop("`cancer` must be one cancer label.", call. = FALSE)
+  }
+  if (!is.data.frame(df) || !all(c("Cancer", "Score") %in% names(df))) {
+    stop("`df` must contain Cancer and Score columns.", call. = FALSE)
+  }
+  scores <- df[!is.na(df$Cancer) & as.character(df$Cancer) == cancer, , drop = FALSE]
+  if (!nrow(scores) || !is.numeric(scores$Score)) {
+    stop("No numeric scores are available for the requested cancer.", call. = FALSE)
+  }
+  if (is.null(tpm)) {
+    if (!"Group" %in% names(scores)) {
+      stop("Supply Group in `df`, or supply `tpm` with Cancer and Group columns.", call. = FALSE)
+    }
+    metadata <- scores[, c("Cancer", "Group"), drop = FALSE]
+  } else {
+    if (!is.data.frame(tpm) || !all(c("Cancer", "Group") %in% names(tpm))) {
+      stop("`tpm` must contain Cancer and Group columns.", call. = FALSE)
+    }
+    indices <- match(rownames(scores), rownames(tpm))
+    if (anyNA(indices)) stop("Some score sample IDs are absent from `tpm`.", call. = FALSE)
+    metadata <- tpm[indices, c("Cancer", "Group"), drop = FALSE]
+    if (anyNA(metadata$Cancer) || any(as.character(metadata$Cancer) != cancer)) {
+      stop("Cancer labels disagree between the scores and `tpm`.", call. = FALSE)
+    }
+  }
+  if (anyNA(metadata$Group) || any(!as.character(metadata$Group) %in% c("Normal", "Tumor"))) {
+    stop("Group must contain only Normal and Tumor labels.", call. = FALSE)
+  }
+  data <- data.frame(Cancer = as.character(metadata$Cancer),
+                     Group = factor(as.character(metadata$Group), levels = c("Normal", "Tumor")),
+                     Score = scores$Score, row.names = rownames(scores))
+  data <- data[is.finite(data$Score), , drop = FALSE]
+  if (!all(c("Normal", "Tumor") %in% as.character(data$Group))) {
+    stop("Both Normal and Tumor samples with finite scores are required.", call. = FALSE)
+  }
+  data
+}
+
+ssGsea_Score_Tumor_Normal <- function(df, cancer, tpm = NULL) {
   ylab_text <- paste0(.panfam_prefix(), "_channels score")
   
-  df <- df[df$Cancer == cancer, -c(2, 3), drop = FALSE]
-  df1 <- filter(tpm, Cancer == cancer) %>% select(Cancer, Group)
-  dat <- cbind(df1, df)
+  dat <- .panfam_legacy_score_groups(df, cancer, tpm)
   
   # 计算p值并定义label
   p_val <- wilcox.test(Score ~ Group, data = dat)$p.value
@@ -1615,13 +1653,9 @@ ssGsea_Score_one_paired_boxplot <- function(df, cancer) {
 
 
 #基因集泛癌ROC曲线#########
-ssGsea_Score_ROC <- function(df, cancer, tpm){
+ssGsea_Score_ROC <- function(df, cancer, tpm = NULL){
 ylab_text <- paste0(.panfam_prefix(), "_channels score")
-df <- df[df$Cancer == cancer, -c(2, 3), drop = FALSE]
-df1 = subset(tpm, Cancer == cancer) %>% select(Cancer, Group)
-stopifnot(identical(rownames(df), rownames(df1)))
-identical(rownames(df), rownames(df1))
-dat = cbind(df1, df)
+dat <- .panfam_legacy_score_groups(df, cancer, tpm)
 res <- pROC::roc_(dat, "Group", "Score", aur = TRUE, 
                   ci = TRUE, smooth = TRUE, levels = c("Normal", "Tumor"))
 p <- pROC::ggroc(res, color = "#56B4E9", size = 1, legacy.axes = TRUE) + 

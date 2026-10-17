@@ -66,20 +66,21 @@
   cox <- result$cox
   group_model <- all(c("hr_high_vs_low", "group_ci_lower", "group_ci_upper", "group_p_value") %in% names(cox))
   plot_title <- paste0(title, "\nMedian split: High > median; Low <= median")
-  plot <- survminer::ggsurvplot(
+  km <- survminer::ggsurvplot(
     result$fit, data = data, title = plot_title,
     legend = c(0.9, 0.83), legend.title = " ", legend.labs = groups,
     xlab = axis_label, ylab = "Survival probability",
     xscale = divisor, break.time.by = break_by,
     palette = unname(colors[groups]), conf.int = FALSE,
-    pval = FALSE, risk.table = FALSE,
+    pval = FALSE, risk.table = TRUE, risk.table.height = 0.25,
     ggtheme = ggplot2::theme_bw(base_size = 15) +
       ggplot2::theme(
         plot.title = ggplot2::element_text(hjust = 0.80, size = 13),
         panel.grid = ggplot2::element_blank(),
         panel.border = ggplot2::element_rect(colour = "black", linewidth = 1.8, fill = NA)
       )
-  )$plot
+  )
+  plot <- km$plot
   if (identical(groups, c("Low", "High"))) {
     plot <- plot + ggplot2::guides(colour = ggplot2::guide_legend(reverse = TRUE),
                                   fill = ggplot2::guide_legend(reverse = TRUE))
@@ -107,6 +108,10 @@
   }))
   plot <- plot + ggplot2::annotation_custom(annotation)
   .panfam_original_survival_devices(path, width = 6, height = 5, draw = function() print(plot))
+  km$plot <- plot
+  risk_path <- paste0(tools::file_path_sans_ext(path), "_with_risk_table.pdf")
+  .panfam_original_survival_devices(risk_path, width = 6, height = 7,
+                                    draw = function() print(km, newpage = TRUE))
 }
 
 .panfam_original_survival_forest <- function(cox, directory, label) {
